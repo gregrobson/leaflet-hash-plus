@@ -1,10 +1,4 @@
 (function(window) {
-	var HAS_HASHCHANGE = (function() {
-		var doc_mode = window.documentMode;
-		return ('onhashchange' in window) &&
-			(doc_mode === undefined || doc_mode > 7);
-	})();
-
 	L.Hash = function(map) {
 		this.onHashChange = L.Util.bind(this.onHashChange, this);
 
@@ -126,27 +120,17 @@
 		},
 
 		isListening: false,
-		hashChangeInterval: null,
 		startListening: function() {
 			this.map.on("moveend", this.onMapMove, this);
 
-			if (HAS_HASHCHANGE) {
-				L.DomEvent.addListener(window, "hashchange", this.onHashChange);
-			} else {
-				clearInterval(this.hashChangeInterval);
-				this.hashChangeInterval = setInterval(this.onHashChange, 50);
-			}
+      L.DomEvent.addListener(window, "hashchange", this.onHashChange);
 			this.isListening = true;
 		},
 
 		stopListening: function() {
 			this.map.off("moveend", this.onMapMove, this);
 
-			if (HAS_HASHCHANGE) {
-				L.DomEvent.removeListener(window, "hashchange", this.onHashChange);
-			} else {
-				clearInterval(this.hashChangeInterval);
-			}
+      L.DomEvent.removeListener(window, "hashchange", this.onHashChange);
 			this.isListening = false;
 		}
 	};
