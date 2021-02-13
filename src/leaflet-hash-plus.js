@@ -1,5 +1,6 @@
 (function(window) {
 	L.Hash = function(map) {
+    this.map = map;
 		this.onHashChange = L.Util.bind(this.onHashChange, this);
 
 		if (map) {
@@ -7,34 +8,39 @@
 		}
 	};
 
+	/**
+	 *
+	 * Returns map has { center: LantLng, zoom: int }
+	 */
 	L.Hash.parseHash = function(hash) {
-		if(hash.indexOf('#') === 0) {
-			hash = hash.substr(1);
-		}
-		var args = hash.split("/");
-		if (args.length == 3) {
-      var zoom = (L.version >= '1.0.0') ? parseFloat(args[0]) : parseInt(args[0], 10),
-			lat = parseFloat(args[1]),
-			lon = parseFloat(args[2]);
-			if (isNaN(zoom) || isNaN(lat) || isNaN(lon)) {
-				return false;
-			} else {
-				return {
-					center: new L.LatLng(lat, lon),
-					zoom: zoom
-				};
-			}
-		} else {
+		args = hash.substr(1).split("/"); // Assume it starts with a '#'
+
+		// Fail on invalid number
+		if (args.length != 3) {
 			return false;
 		}
+
+		var zoom = (L.version >= '1.0.0') ? parseFloat(args[0]) : parseInt(args[0], 10),
+		lat = parseFloat(args[1]),
+		lon = parseFloat(args[2]);
+		// Fail on invalid params
+		if (isNaN(zoom) || isNaN(lat) || isNaN(lon)) {
+			return false;
+		}
+
+		return {
+			center: new L.LatLng(lat, lon),
+			zoom: zoom
+		};
 	};
 
 	L.Hash.formatHash = function(map) {
 		var center = map.getCenter(),
-		    zoom = map.getZoom(),
-		    precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
+				zoom = map.getZoom(),
+				precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
 
-    return "#" + [(L.version >= '1.0.0') ? zoom.toFixed(precision) : zoom,
+		return "#" + [
+			(L.version >= '1.0.0') ? zoom.toFixed(precision) : zoom,
 			center.lat.toFixed(precision),
 			center.lng.toFixed(precision)
 		].join("/");
@@ -42,97 +48,73 @@
 
 	L.Hash.prototype = {
 		map: null,
-		lastHash: null,
+		isListening: false,
 
 		parseHash: L.Hash.parseHash,
 		formatHash: L.Hash.formatHash,
 
+		ignoreHashChange: false,
+
 		init: function(map) {
 			this.map = map;
 
-			// reset the hash
-			this.lastHash = null;
-			this.onHashChange();
-
-			if (!this.isListening) {
-				this.startListening();
-			}
+			// Make a hashchange when loaded.
+			this.map.whenReady(this.onHashChange, this);
+			this.startListening();
 		},
 
-		removeFrom: function(map) {
-			if (this.changeTimeout) {
-				clearTimeout(this.changeTimeout);
-			}
-
-			if (this.isListening) {
-				this.stopListening();
-			}
-
-			this.map = null;
-		},
-
-		onMapMove: function() {
-			// bail if we're moving the map (updating from a hash),
-			// or if the map is not yet loaded
-
-			if (this.movingMap || !this.map._loaded) {
-				return false;
-			}
-
-			var hash = this.formatHash(this.map);
-			if (this.lastHash != hash) {
-				location.replace(hash);
-				this.lastHash = hash;
-			}
-		},
-
-		movingMap: false,
-		update: function() {
-			var hash = location.hash;
-			if (hash === this.lastHash) {
+		// Notified whenever the hash changes.
+		onHashChange: function()
+		{
+			if (this.ignoreHashChange) {
+				this.ignoreHashChange = false;
 				return;
 			}
-			var parsed = this.parseHash(hash);
-			if (parsed) {
-				this.movingMap = true;
 
-				this.map.setView(parsed.center, parsed.zoom);
-
-				this.movingMap = false;
-			} else {
-				this.onMapMove(this.map);
+			var state = this.parseHash(location.hash);
+			if (false === state) {
+				this.onMapMove();
+				return;
 			}
+
+			// In all other cases - use the Hash, it was okay.
+			this.map.setView(state.center, state.zoom);
+			this.ignoreHashChange = false;
 		},
 
-		// defer hash change updates every 100ms
-		changeDefer: 100,
-		changeTimeout: null,
-		onHashChange: function() {
-			// throttle calls to update() so that they only happen every
-			// `changeDefer` ms
-			if (!this.changeTimeout) {
-				var that = this;
-				this.changeTimeout = setTimeout(function() {
-					that.update();
-					that.changeTimeout = null;
-				}, this.changeDefer);
-			}
+		// When map is moved by user, or function is called, update the hash
+		onMapMove: function() {
+			console.log('mapMoved()');
+			this.updateHash();
 		},
 
-		isListening: false,
+		updateHash: function() {
+			this.ignoreHashChange = false; // Update by us, not user, so ignore it
+			location.hash = this.formatHash(this.map);
+		},
+
 		startListening: function() {
-			this.map.on("moveend", this.onMapMove, this);
+			if (this.isListening) {
+				return;
+			}
 
-      L.DomEvent.addListener(window, "hashchange", this.onHashChange);
+			// Listen to all hashchange events
+			L.DomEvent.addListener(window, "hashchange", this.onHashChange);
+			// When the map is updated, we update the hash
+			this.map.on("moveend", this.onMapMove, this);
 			this.isListening = true;
 		},
 
 		stopListening: function() {
+			if (!this.isListening) {
+				return;
+			}
+
 			this.map.off("moveend", this.onMapMove, this);
 
       L.DomEvent.removeListener(window, "hashchange", this.onHashChange);
 			this.isListening = false;
-		}
+		},
 	};
 	L.hash = function(map) {
 		return new L.Hash(map);
