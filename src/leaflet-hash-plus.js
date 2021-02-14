@@ -1,5 +1,6 @@
 (function(window) {
 	L.Hash = function(map) {
+    this.map = map;
 		this.onHashChange = L.Util.bind(this.onHashChange, this);
 
 		if (map) {
@@ -7,139 +8,277 @@
 		}
 	};
 
+	/**
+	 * Attempts to parse and return properties from a hash.
+	 *
+	 * On success will return
+	 * {
+	 *   view {
+	 *     center: L.LatLng,
+	 * 		 zoom: float|integer,
+	 * 	 },
+	 *   meta: array
+	 * }
+	 *
+	 * On failure will return:
+	 * {
+	 *   view false,
+	 *   meta: array
+	 * }
+	 *
+	 * Reasons for failure include:
+	 * > Less than 3 arguments passed (requires zoom, lat, lng)
+	 * > Zoom is not a float (version 1.0.0+), or integer (before version 1)
+	 * > Lat/Lng values are out of range.
+	 *
+	 * The response to "#18.00000/51.49867/-0.14442/buckingham/palace" is
+	 * {
+	 *   view {
+	 *     center: L.LatLng(51.49867, -0.14442),
+	 * 		 zoom: 18.00000,
+	 * 	 },
+	 *   meta: ['buckingham', 'palace']
+	 * }
+	 *
+	 * @param {string} hash The full hash from the page, e.g. "#a/b/c"
+	 * @returns {object} See above notes.
+	 */
 	L.Hash.parseHash = function(hash) {
-		if(hash.indexOf('#') === 0) {
-			hash = hash.substr(1);
-		}
-		var args = hash.split("/");
-		if (args.length == 3) {
-      var zoom = (L.version >= '1.0.0') ? parseFloat(args[0]) : parseInt(args[0], 10),
-			lat = parseFloat(args[1]),
-			lon = parseFloat(args[2]);
-			if (isNaN(zoom) || isNaN(lat) || isNaN(lon)) {
-				return false;
-			} else {
-				return {
-					center: new L.LatLng(lat, lon),
-					zoom: zoom
-				};
+		args = hash.substr(1).split("/"); // Assume it starts with a '#'
+
+		// Assuming the map properties validate, everything after them is metadata.
+		meta = args.length > 3 ? args.slice(3) : [];
+
+		if (args.length < 3) {
+			return {
+				view: false,
+				meta: meta,
 			}
-		} else {
-			return false;
 		}
+
+		var zoom = (L.version >= '1.0.0') ? parseFloat(args[0]) : parseInt(args[0], 10),
+			lat = parseFloat(args[1]),
+			lng = parseFloat(args[2]);
+
+		// Fail on invalid params
+		if (isNaN(zoom) || isNaN(lat) || isNaN(lng)) {
+			return {
+				view: false,
+				meta: meta,
+			}
+		}
+
+		if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+			return {
+				view: false,
+				meta: meta,
+			}
+		}
+
+		// All valid, all in range.
+		return {
+			view: {
+				center: new L.LatLng(lat, lng),
+				zoom: zoom,
+			},
+			meta: meta,
+		};
 	};
 
-	L.Hash.formatHash = function(map) {
+	/**
+	 * Formats a hash for the given properties.
+	 *
+	 * Takes map details and formats them according to the following:
+	 * #<zoom>/<lat>/<lng>/meta1/meta2
+	 *
+	 * @param {L.Map} map Leaflet map instance
+	 * @param {array|null} meta Array of strings for meta data. If null then no
+	 * values will be added.
+	 */
+	L.Hash.formatHash = function(map, meta) {
 		var center = map.getCenter(),
-		    zoom = map.getZoom(),
-		    precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
+				zoom = map.getZoom(),
+				precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
 
-    return "#" + [(L.version >= '1.0.0') ? zoom.toFixed(precision) : zoom,
+		meta = typeof meta === 'undefined' ? [] : meta;
+
+		var viewHash = [
+			(L.version >= '1.0.0') ? zoom.toFixed(precision) : zoom,
 			center.lat.toFixed(precision),
 			center.lng.toFixed(precision)
-		].join("/");
+		];
+
+		return "#" + viewHash.concat(meta).join('/');
 	},
 
 	L.Hash.prototype = {
 		map: null,
-		lastHash: null,
+		isListening: false,
+		hashMeta: [],
 
 		parseHash: L.Hash.parseHash,
 		formatHash: L.Hash.formatHash,
 
+		/**
+		 * Initialises the hash functions.
+		 *
+		 * When map is ready it will run the onHashChange method to fetch state to
+		 * update the map.
+		 *
+		 * @param {L.map} map
+		 */
 		init: function(map) {
 			this.map = map;
 
-			// reset the hash
-			this.lastHash = null;
-			this.onHashChange();
+			// Make a hashchange when loaded.
+			this.map.whenReady(this.onHashChange, this);
+			this.startListening();
+		},
 
-			if (!this.isListening) {
-				this.startListening();
+		/**
+		 * Returns the precision for toFixed() calls for zoom and lat/lng values.
+		 *
+		 * Values are rendered more accuratly when you zoom in.
+		 */
+		getMapPrecision: function() {
+			return Math.max(0, Math.ceil(Math.log(this.map.getZoom()) / Math.LN2));
+		},
+
+		/**
+		 * Allows code outside of this plugin to manipulate hash meta data.
+		 *
+		 * Will override any existing meta data. Calling this will not result in
+		 * a hashmetachange event.
+		 *
+		 * @param {array} meta Array of string values to be put on the end of the
+		 * hash.
+		 * @param {boolean} fireEvents Causes events like hashmetachange to be
+		 * fired. False by default to avoid your own application being updated when
+		 * you update the hash and a loop being created.
+		 */
+		setHashMeta: function(meta, fireEvents) {
+			// fireEvents is false by default
+			fireEvents = typeof fireEvents === 'undefined' ? false : fireEvents;
+
+			var metaChanges = JSON.stringify(this.hashMeta) !== JSON.stringify(meta)
+
+			if (metaChanges) {
+				if (fireEvents) {
+					this.map.fire('hashmetachange', {meta: meta, previousMeta: this.hashMeta});
+				};
+
+				this.hashMeta = meta;
+				this.updateHash();
 			}
 		},
 
-		removeFrom: function(map) {
-			if (this.changeTimeout) {
-				clearTimeout(this.changeTimeout);
-			}
+		/**
+		 * Called whenever the hash in the URL is changed.
+		 *
+		 * When called we attempt to parse the hash that may (or may not) exist, and
+		 * might be invalid.
+		 *
+		 * If parsing results in a missing/invalid hash, remove any meta data and
+		 * force an update of the hash (which will populate the hash with the
+		 * current map state).
+		 *
+		 * If hash has valid map view data, check if the meta data has changed: if
+		 * so, fire a *hashmetachange* event with *meta* property.
+		 *
+		 * If the view data in the hash doesn't not match the current map (hash in
+		 * URL has been change by user or external code), update the map view.
+		 *
+		 */
+		onHashChange: function()
+		{
+			var hash = this.parseHash(location.hash);
 
-			if (this.isListening) {
-				this.stopListening();
-			}
-
-			this.map = null;
-		},
-
-		onMapMove: function() {
-			// bail if we're moving the map (updating from a hash),
-			// or if the map is not yet loaded
-
-			if (this.movingMap || !this.map._loaded) {
-				return false;
-			}
-
-			var hash = this.formatHash(this.map);
-			if (this.lastHash != hash) {
-				location.replace(hash);
-				this.lastHash = hash;
-			}
-		},
-
-		movingMap: false,
-		update: function() {
-			var hash = location.hash;
-			if (hash === this.lastHash) {
+			// Force update of hash if the current one is invalid
+			if (false === hash.view) {
+				this.hashMeta = [];
+				this.updateHash();
 				return;
 			}
-			var parsed = this.parseHash(hash);
-			if (parsed) {
-				this.movingMap = true;
 
-				this.map.setView(parsed.center, parsed.zoom);
+			// Push the change in hash meta.
+			this.setHashMeta(hash.meta, true);
 
-				this.movingMap = false;
-			} else {
-				this.onMapMove(this.map);
+			// Updating the view will update the hash, which in turn will cause this
+			// function to be called again. We won't get caught in a loop as if we
+			// update the hash, it will match the current map state.
+			if (! this.viewMatchesMapState(hash.view)) {
+				this.map.setView(hash.view.center, hash.view.zoom);
 			}
 		},
 
-		// defer hash change updates every 100ms
-		changeDefer: 100,
-		changeTimeout: null,
-		onHashChange: function() {
-			// throttle calls to update() so that they only happen every
-			// `changeDefer` ms
-			if (!this.changeTimeout) {
-				var that = this;
-				this.changeTimeout = setTimeout(function() {
-					that.update();
-					that.changeTimeout = null;
-				}, this.changeDefer);
+		/**
+		 * Checks to see if the passed view matches the current state of the map.
+		 *
+		 * An invalid view (false) value will result in a non-match.
+		 *
+		 * Zoom, Lat and Lng values must match to consider the view to match map
+		 * state.
+		 *
+		 * @param {object} view Contains *center*  (L.latlng) and *zoom* (float:int)
+		 */
+		viewMatchesMapState: function(view) {
+			if (false === view) {
+				return false;
 			}
+			center = this.map.getCenter();
+			precision = this.getMapPrecision();
+			return this.map.getZoom().toFixed(precision) == view.zoom.toFixed(precision)
+				&& center.lat.toFixed(precision) == view.center.lat
+				&& center.lng.toFixed(precision) == view.center.lng;
 		},
 
-		isListening: false,
+		/**
+		 * Called on my moveend events so that any zoom/pan operations update the
+		 * hash.
+		 */
+		onMapMove: function() {
+			this.updateHash();
+		},
+
+		/**
+		 * Called to update the hash for the map, based on map state and meta.
+		 */
+		updateHash: function() {
+			location.hash = this.formatHash(this.map, this.hashMeta);
+		},
+
+		/**
+		 * Registers event listeners. Window hash changes and map moveend events.
+		 */
 		startListening: function() {
-			this.map.on("moveend", this.onMapMove, this);
+			if (this.isListening) {
+				return;
+			}
 
-      L.DomEvent.addListener(window, "hashchange", this.onHashChange);
+			L.DomEvent.addListener(window, "hashchange", this.onHashChange);
+			this.map.on("moveend", this.onMapMove, this);
 			this.isListening = true;
 		},
 
+		/**
+		 * Deregisters event listeners. Window hash changes and map moveend events.
+		 */
 		stopListening: function() {
-			this.map.off("moveend", this.onMapMove, this);
+			if (! this.isListening) {
+				return;
+			}
 
+			this.map.off("moveend", this.onMapMove, this);
       L.DomEvent.removeListener(window, "hashchange", this.onHashChange);
 			this.isListening = false;
-		}
+		},
 	};
 	L.hash = function(map) {
 		return new L.Hash(map);
 	};
 	L.Map.prototype.addHash = function() {
 		this._hash = L.hash(this);
-	};
+4	};
 	L.Map.prototype.removeHash = function() {
 		this._hash.removeFrom();
 	};
