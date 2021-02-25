@@ -44,10 +44,10 @@
 	 * @returns {object} See above notes.
 	 */
 	L.Hash.parseHash = function(hash) {
-		args = hash.substr(1).split("/"); // Assume it starts with a '#'
+		let args = hash.substr(1).split("/"); // Assume it starts with a '#'
 
 		// Assuming the map properties validate, everything after them is metadata.
-		meta = args.length > 3 ? args.slice(3) : [];
+		let meta = args.length > 3 ? args.slice(3) : [];
 
 		if (args.length < 3) {
 			return {
@@ -115,6 +115,7 @@
 		map: null,
 		isListening: false,
 		hashMeta: [],
+		isSetUp: false,
 
 		parseHash: L.Hash.parseHash,
 		formatHash: L.Hash.formatHash,
@@ -131,8 +132,35 @@
 			this.map = map;
 
 			// Make a hashchange when loaded.
-			this.map.whenReady(this.onHashChange, this);
+			this.map.whenReady(this.setupMap, this);
 			this.startListening();
+		},
+
+		/**
+		 * Performs initial setup.
+		 *
+		 * Makes an initial attempt to prase the hash and fires hashmetainit with
+		 * the initial meta state.
+		 *
+		 * Flag we are now "set up" so that subsequent onMapMove events can
+		 * manipulate the map.
+		 *
+		 * If we fail to get #zoom/lat/lng from the URL we just call updateHash to
+		 * set with current map state.
+		 */
+		setupMap: function() {
+			var hash = this.parseHash(location.hash);
+			this.map.fire('hashmetainit', {meta: hash.meta});
+
+			// Force update of hash if the current one is invalid
+			this.isSetUp = true;
+			if (false === hash.view) {
+				this.hashMeta = [];
+				this.updateHash();
+				return;
+			}
+
+			this.map.setView(hash.view.center, hash.view.zoom);
 		},
 
 		/**
@@ -235,8 +263,14 @@
 		/**
 		 * Called on my moveend events so that any zoom/pan operations update the
 		 * hash.
+		 *
+		 * As we might want to pull meta data on initial page load, we hold back
+		 * on allowing updateHash to be called until we have examined location.hash
 		 */
 		onMapMove: function() {
+			if (! this.isSetUp) {
+				return;
+			}
 			this.updateHash();
 		},
 
