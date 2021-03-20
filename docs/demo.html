@@ -40,10 +40,8 @@
   // }, false);
 
     var map = L.map('map', {
-      zoomSnap: 1,
-      // zoomDelta: 1,
       center: [54.526506,-2.9995729],
-      zoom: 10,
+      zoom: 13,
     });
 
     var clickHandler = function(e) {
@@ -68,19 +66,9 @@
     var hash = new L.Hash(map);
 
     L.tileLayer(
-      // Stadia Maps...
-      // 'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png',
-      // ... or Thunderforest?
-      'https://tile.thunderforest.com/outdoors/{z}/{x}/{y}{r}.png?apikey=a4d6112fa0d84675a07c128d0d0fed64',
-      {
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
-          'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox/streets-v11',
-        zoomOffset: -1,
-        tileSize: 512,
-      }
-    )
-    .addTo(map);
+      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {attribution: 'Stamen'}
+    ).addTo(map);
 
 
 
