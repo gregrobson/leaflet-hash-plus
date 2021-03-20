@@ -1,0 +1,80 @@
+<!doctype html>
+<head>
+  <title>Map Test</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="anonymous" />
+
+  <script src="/src/leaflet-hash-plus.js"></script>
+
+  <style>
+    #map {
+      height: 100vh;
+      width: 100vw;
+      font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+      font-size: 10pt;
+    }
+  </style>
+</head>
+<body style="padding: 0; margin: 0;">
+
+
+<div id="map"></div>
+<!--
+  How should this shape up?
+
+  There should be a way for us to update the Hash State in LHP by sending properties
+  into it.
+
+  There should be a way for LHP to know that we have parsed a correct URL by checking
+  it against the external calling code.
+
+  There should be a way for LHP to communicatate hash changes to the calling code.
+
+-->
+
+
+  <!-- Add your site or application content here -->
+  <script>
+  // window.addEventListener("hashchange", function(event) {
+  //   console.log('hash has changed!', event);
+  // }, false);
+
+    var map = L.map('map', {
+      center: [54.526506,-2.9995729],
+      zoom: 13,
+    });
+
+    var clickHandler = function(e) {
+      console.log('mouse click!', e.sourceTarget.options);
+      hash.setHashMeta([e.sourceTarget.options.id]);
+    };
+
+    var markers = [];
+    markers[1] = L.marker([54.523506,-2.9995729], {id: 1}).addTo(map);
+    markers[2] = L.marker([54.523506,-2.9095729], {id: 2}).addTo(map);
+
+    markers[1].bindPopup('Marker 1');
+    markers[2].bindPopup('Marker 2');
+
+    markers[1].on('click', clickHandler);
+    markers[2].on('click', clickHandler);
+
+    map.on("hashmetachange", function(newState) {
+      console.log('hashmetachange detected', newState.meta);
+      markers[newState.meta[0]].openPopup();
+    });
+    var hash = new L.Hash(map);
+
+    L.tileLayer(
+      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {attribution: 'Stamen'}
+    ).addTo(map);
+
+
+
+
+
+    // hash.setHashMeta(['test3']);
+  </script>
+</body>
+</html>
