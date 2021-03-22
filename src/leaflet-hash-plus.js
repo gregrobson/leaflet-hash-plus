@@ -159,13 +159,14 @@
         console.log('hash view is false');
         this.hashMeta = [];
         this.updateHash();
+        this.startListening();
         return;
       } else {
         this.setHashMeta(hash.meta, true);
       }
 
-      this.map.setView(hash.view.center, hash.view.zoom);
       this.startListening();
+      this.map.setView(hash.view.center, hash.view.zoom);
     },
 
     /**
@@ -195,15 +196,13 @@
 
       var metaChanges = JSON.stringify(this.hashMeta) !== JSON.stringify(meta)
 
-      console.log('meta changed from X to Y: ', this.hashMeta, meta, metaChanges);
-      // metaChanges = true;
+      console.log('metaChanges', metaChanges);
       if (metaChanges) {
-
         if (fireEvents) {
-          console.log('firing hashmetachange', meta);
           this.map.fire('hashmetachange', {meta: meta, previousMeta: this.hashMeta});
         };
 
+        // Shallow copy the array or we start comparing to the same object.
         this.hashMeta = [...meta];
         this.updateHash();
       }
@@ -228,6 +227,7 @@
      */
     onHashChange: function() {
       var hash = this.parseHash(location.hash);
+      console.log('hash changed', hash);
 
       // Force update of hash if the current one is invalid
       if (false === hash.view) {
@@ -286,6 +286,10 @@
      * Called to update the hash for the map, based on map state and meta.
      */
     updateHash: function() {
+      console.log('updating hash', {
+        from: location.hash,
+        to: this.formatHash(this.map, this.hashMeta),
+      });
       location.hash = this.formatHash(this.map, this.hashMeta);
     },
 

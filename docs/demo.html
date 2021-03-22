@@ -16,13 +16,36 @@
       width: 50vw;
       font-size: 10pt;
     }
+    tt {
+      font-family: monospace;
+      padding: 2px;
+      font-size: 115%;
+      color: #49025f;
+      background-color: #ddd;
+    }
+    tt emphasis {
+      color: rgba(0, 89, 206, 0.74);
+    }
   </style>
 </head>
 <body style="padding: 0; margin: 0;">
 
   <div style="display: flex; flex-direction: row;">
-  <div id="map"></div>
-  <div>Management</div>
+  <div id="map" style="min-width: 50%;"></div>
+  <div style="padding: 1rem;">
+    <h2>Leaflet Hash Plus Demo</h2>
+    <p>This demo shows a basic example of how events how the location in the address bar and map can manipulate each other.</p>
+    <p>Initially the URL will set to <tt>demo.html#13.0000/54.5252/-3.0151</tt> set by the map's configuration in the source code.</p>
+    <p>Click on <strong>Hellvellyn</strong> and <strong>Catstycam</strong>, see that the location hash changes to <tt>demo.html#13.0000/54.5252/-3.0151/<emphasis>hellvellyn/catstycam</emphasis></tt> and reflects the two dimmed locations.</p>
+    <p>Change the location hash as follows:<br/>
+    From: <tt>demo.html#13.0000/54.5252/-3.0151/<emphasis>hellvellyn/catstycam</emphasis></tt><br>
+    To: <tt>demo.html#13.0000/54.5252/-3.0151/<emphasis>hellvellyn/<strong>lowerman/</strong>catstycam</emphasis></tt><br/>
+    See how Lower Man also dimmed? The location change updated the map markers.</p>
+
+    <p>Changing the values for the zoom and latitude/longitude will have the same effect if the values are valid. (If they are not, the meta data will be wiped and the map zoom and centre will reset to the current map values.</p>
+
+    </p>
+  </div>
   </div>
 
   <script>
