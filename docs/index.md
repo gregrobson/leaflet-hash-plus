@@ -2,4 +2,4 @@
 
 ## Demo
 
-Demo info to go here.
+There is a [basic demo](demo.html) of Leaflet Hash Plus in action.
