@@ -1,0 +1,24 @@
+{
+  "name": "leaflet-hash-plus",
+  "version": "0.1.0",
+  "description": "Leaflet plugin for interacting with the location hash",
+  "main": "src/leaflet-hash-plus.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gregrobson/leaflet-hash-plus.git"
+  },
+  "keywords": [
+    "leaflet",
+    "mapping",
+    "leafletjs"
+  ],
+  "author": "Greg Robson",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gregrobson/leaflet-hash-plus/issues"
+  },
+  "homepage": "https://github.com/gregrobson/leaflet-hash-plus#readme"
+}
