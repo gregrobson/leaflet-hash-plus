@@ -2,7 +2,7 @@
 
 [Leaflet](https://leafletjs.com/) mappping plugin for interacting the location hash in the address bar. Allows for you to update the hash and for your code to be notified of changes in the hash (by the user navigating) or manually editing the location hash.
 
-![Leaflet-Hash-Plus](/gregrobson/leaflet-hash-plus/blob/main/screenshots/leaflet-hash-plus.png?raw=true)
+![Leaflet-Hash-Plus](screenshots/leaflet-hash-plus.png)
 
 This plugin is based on [Leaflet-hash](https://github.com/mlevans/leaflet-hash). This plugin has seen no activity since 2013 and I'm judging it to abandoned. Out of my own necessity I have I have built Leaflet Hash **Plus** to support an expanded set of features (some requested for leaflet-hash).
 
