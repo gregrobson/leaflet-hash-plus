@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/gregrobson/leaflet-hash-plus#readme",
   "dependencies": {
-    "global": "^4.4.0"
+    "global": "^4.4.0",
+    "leaflet": "^1.7.1"
   }
 }
