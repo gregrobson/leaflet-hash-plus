@@ -5,6 +5,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'leaflet-hash-plus.js',
+    globalObject: 'this',
     library: {
       name: 'leafletHashPlus',
       type: 'umd',
