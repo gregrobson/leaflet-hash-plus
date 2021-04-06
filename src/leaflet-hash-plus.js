@@ -1,5 +1,3 @@
-var window = require('global/window');
-
 (function(window) {
   L.Hash = function(map, promise) {
     this.map = map;
