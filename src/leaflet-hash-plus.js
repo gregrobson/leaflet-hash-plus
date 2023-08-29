@@ -44,7 +44,7 @@
    * @returns {object} See above notes.
    */
   L.Hash.parseHash = function(hash) {
-    let args = hash.substr(1).split("/"); // Assume it starts with a '#'
+    let args = hash.substring(1).split("/").filter(n => n); // Assume it starts with a '#'
 
     // Assuming the map properties validate, everything after them is metadata.
     let meta = args.length > 3 ? args.slice(3) : [];
